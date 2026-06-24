@@ -5,10 +5,15 @@ mod models;
 mod services;
 
 use axum::{
+    http::{header, HeaderValue},
     routing::post,
     Router,
 };
 use std::sync::Arc;
+use tower_http::{
+    cors::CorsLayer,
+    set_header::SetResponseHeaderLayer,
+};
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::OpenApi;
@@ -69,12 +74,32 @@ async fn main() -> anyhow::Result<()> {
         config: config.clone(),
     });
 
+    // Configure permissive CORS for all frontends
+    let cors = CorsLayer::permissive();
+
     // Build our application with routes
     let app = Router::new()
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/api/v1/otp/generate", post(generate_otp))
         .route("/api/v1/otp/verify", post(verify_otp))
-        .with_state(state);
+        .with_state(state)
+        .layer(cors)
+        .layer(SetResponseHeaderLayer::overriding(
+            header::STRICT_TRANSPORT_SECURITY,
+            HeaderValue::from_static("max-age=31536000; includeSubDomains"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            header::X_CONTENT_TYPE_OPTIONS,
+            HeaderValue::from_static("nosniff"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            header::X_FRAME_OPTIONS,
+            HeaderValue::from_static("DENY"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            header::CONTENT_SECURITY_POLICY,
+            HeaderValue::from_static("default-src 'none'"),
+        ));
 
     // Start the server
     let addr = format!("0.0.0.0:{}", config.port);

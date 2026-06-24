@@ -25,13 +25,19 @@ FROM debian:bullseye-slim
 
 RUN apt-get update && apt-get install -y ca-certificates libssl1.1 && rm -rf /var/lib/apt/lists/*
 
+# Create a non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 WORKDIR /usr/local/bin
 
 # Copy the compiled binary from the builder environment
 COPY --from=builder /usr/src/app/target/release/mfa-service .
 
-# Set permissions
-RUN chmod +x mfa-service
+# Set permissions and ownership
+RUN chmod +x mfa-service && chown appuser:appuser mfa-service
+
+# Switch to the non-root user
+USER appuser:appuser
 
 # Expose port
 EXPOSE 3000
