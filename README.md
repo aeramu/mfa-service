@@ -41,25 +41,39 @@ This service handles generating, securely storing (via Redis), emailing, and ver
 
 ---
 
-## 💻 Local Development Setup
+## 💻 Getting Started
 
-### 1. Start the Infrastructure
-We use `docker-compose` to spin up a local Redis instance and **Mailpit** (a local SMTP server for catching emails without actually sending them).
-```bash
-docker-compose up -d
-```
-*Note: Mailpit's web interface will be available at [http://localhost:8025](http://localhost:8025).*
+You can run this project in two ways: either using the full Docker Compose stack (easiest) or running the Rust code locally via Cargo (best for development).
 
-### 2. Configure Environment
-Copy the example environment file:
-```bash
-cp .env.example .env
-```
+### Option 1: Full Docker Stack (Easiest)
+This method spins up the Rust application, Redis, and Mailpit all at once within an isolated Docker network.
 
-### 3. Run the Server
-```bash
-cargo run
-```
+1. Ensure Docker is running.
+2. Run the following command:
+   ```bash
+   docker-compose up --build
+   ```
+3. The API will be available at `http://localhost:3000` and Mailpit at `http://localhost:8025`.
+
+*(Note: The `docker-compose.yml` automatically overrides the environment variables so the Rust container can correctly discover Redis and Mailpit via Docker DNS).*
+
+---
+
+### Option 2: Cargo (Local Development)
+This method is best if you are actively editing the Rust code. It uses Docker just for the database and SMTP server.
+
+1. Start the dependencies (Redis and Mailpit):
+   ```bash
+   docker-compose up -d redis mailpit
+   ```
+2. Copy the environment configuration:
+   ```bash
+   cp .env.example .env
+   ```
+3. Run the server:
+   ```bash
+   cargo run
+   ```
 The server will start on `http://localhost:3000`.
 
 ---

@@ -1,9 +1,11 @@
 # 1. Build Stage
-FROM rust:1.76-slim-bullseye AS builder
+FROM rust:slim-bullseye AS builder
+
+# Install build dependencies required by utoipa-swagger-ui build scripts
+RUN apt-get update && apt-get install -y curl pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
 
 # Create a new empty shell project
 WORKDIR /usr/src/app
-RUN apt-get update && apt-get install -y pkg-config libssl-dev
 
 # Copy manifests
 COPY Cargo.toml Cargo.lock ./
@@ -16,6 +18,7 @@ RUN mkdir src && \
 
 # Copy real source code
 COPY src ./src
+COPY templates ./templates
 
 # Build for release (touch main.rs to ensure cargo rebuilds it)
 RUN touch src/main.rs && cargo build --release
