@@ -7,8 +7,9 @@ pub struct Config {
     pub smtp_host: String,
     pub smtp_port: u16,
     pub smtp_user: String,
-    pub smtp_pass: String,
-    pub smtp_from: String,
+    pub smtp_password: String,
+    pub smtp_use_tls: bool,
+    pub from_address: String,
     pub otp_expiration_minutes: u64,
     pub otp_length: usize,
     pub rate_limit_reset_seconds: u64,
@@ -30,8 +31,11 @@ impl Config {
             .parse()
             .expect("SMTP_PORT must be a number");
         let smtp_user = env::var("SMTP_USER").unwrap_or_default();
-        let smtp_pass = env::var("SMTP_PASSWORD").unwrap_or_default();
-        let smtp_from = env::var("SMTP_FROM").expect("SMTP_FROM must be set");
+        let smtp_password = env::var("SMTP_PASSWORD").unwrap_or_default();
+        let smtp_use_tls = env::var("SMTP_USE_TLS")
+            .map(|s| s == "true" || s == "1")
+            .unwrap_or(false); // Default to false for local Mailpit dev
+        let from_address = env::var("FROM_ADDRESS").unwrap_or_else(|_| "noreply@example.com".to_string());
 
         let otp_expiration_minutes = env::var("OTP_EXPIRATION_MINUTES")
             .unwrap_or_else(|_| "10".to_string())
@@ -57,8 +61,9 @@ impl Config {
             smtp_host,
             smtp_port,
             smtp_user,
-            smtp_pass,
-            smtp_from,
+            smtp_password,
+            smtp_use_tls,
+            from_address,
             otp_expiration_minutes,
             otp_length,
             rate_limit_reset_seconds,

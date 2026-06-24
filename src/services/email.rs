@@ -1,7 +1,7 @@
 use crate::{config::Config, error::AppError};
 use lettre::{
     message::header::ContentType, transport::smtp::authentication::Credentials, Message,
-    SmtpTransport, Transport,
+    SmtpTransport, Transport, transport::smtp::client::Tls,
 };
 use askama::Template;
 
@@ -20,25 +20,24 @@ pub struct EmailService {
 
 impl EmailService {
     pub fn new(config: &Config) -> Self {
-        let creds = Credentials::new(config.smtp_user.clone(), config.smtp_pass.clone());
-        
-        let mailer = if config.smtp_host == "127.0.0.1" || config.smtp_host == "localhost" {
-            // Local Mailpit/MailHog (no TLS)
-            SmtpTransport::builder_dangerous(&config.smtp_host)
-                .port(config.smtp_port)
-                .build()
-        } else {
-            // Production (TLS)
-            SmtpTransport::relay(&config.smtp_host)
-                .expect("Failed to create SMTP relay")
-                .port(config.smtp_port)
-                .credentials(creds)
-                .build()
-        };
+        let mut builder = SmtpTransport::relay(&config.smtp_host)
+            .expect("Failed to create SMTP relay")
+            .port(config.smtp_port);
+
+        if !config.smtp_use_tls {
+            builder = builder.tls(Tls::None);
+        }
+
+        if !config.smtp_user.is_empty() {
+            let creds = Credentials::new(config.smtp_user.clone(), config.smtp_password.clone());
+            builder = builder.credentials(creds);
+        }
+
+        let mailer = builder.build();
 
         Self {
             mailer,
-            from_address: config.smtp_from.clone(),
+            from_address: config.from_address.clone(),
         }
     }
 
