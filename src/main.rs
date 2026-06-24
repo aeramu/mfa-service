@@ -1,0 +1,115 @@
+mod config;
+mod error;
+mod handlers;
+mod models;
+mod services;
+
+use axum::{
+    routing::post,
+    Router,
+};
+use std::sync::Arc;
+use tokio::net::TcpListener;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
+use config::Config;
+use handlers::{generate_otp, verify_otp, AppState};
+use services::{email::EmailService, redis::RedisService};
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        handlers::generate_otp,
+        handlers::verify_otp
+    ),
+    components(
+        schemas(
+            models::GenerateOtpRequest, 
+            models::GenerateOtpResponse, 
+            models::VerifyOtpRequest, 
+            models::VerifyOtpResponse,
+            models::ErrorResponse,
+            models::RateLimitResponse,
+            models::ValidationErrorResponse
+        )
+    ),
+    tags(
+        (name = "OTP", description = "Email OTP generation and verification endpoints")
+    )
+)]
+struct ApiDoc;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Initialize tracing (logging)
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "mfa_service=debug,info".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    // Load environment variables (ignore error if .env is missing in production)
+    let _ = dotenvy::dotenv();
+
+    // Load configuration
+    let config = Config::from_env();
+
+    // Initialize services
+    let redis_service = RedisService::new(&config.redis_url);
+    let email_service = EmailService::new(&config);
+
+    // Create application state
+    let state = Arc::new(AppState {
+        redis_service,
+        email_service,
+        config: config.clone(),
+    });
+
+    // Build our application with routes
+    let app = Router::new()
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .route("/api/v1/otp/generate", post(generate_otp))
+        .route("/api/v1/otp/verify", post(verify_otp))
+        .with_state(state);
+
+    // Start the server
+    let addr = format!("0.0.0.0:{}", config.port);
+    tracing::info!("Server listening on {}", addr);
+    
+    let listener = TcpListener::bind(&addr).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
+
+    Ok(())
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+    
+    tracing::info!("Shutdown signal received, starting graceful shutdown");
+}
