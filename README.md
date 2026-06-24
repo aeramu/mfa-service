@@ -16,6 +16,7 @@ This service handles generating, securely storing (via Redis), emailing, and ver
   * Security headers injected via `tower-http` (`Strict-Transport-Security`, `X-Content-Type-Options`, `X-Frame-Options`).
   * Runs as a secure `non-root` user within the production Docker container.
 * **Auto-Expiring OTPs**: Powered natively by Redis TTL.
+* **Asymmetric JWT Authentication**: Securely signs JWTs using an RS256 Private Key and serves a public endpoint (`GET /api/v1/otp/public-key`) for other microservices to verify them.
 * **HTML Email Templates**: Emails are beautifully rendered using the `askama` compiled templating engine.
 * **Graceful Shutdown**: Traps `SIGINT` and `SIGTERM` to safely drain active connections before shutting down.
 * **Interactive OpenAPI Docs**: Self-documenting API via `utoipa` and Swagger UI.
@@ -49,11 +50,16 @@ You can run this project in two ways: either using the full Docker Compose stack
 This method spins up the Rust application, Redis, and Mailpit all at once within an isolated Docker network.
 
 1. Ensure Docker is running.
-2. Run the following command:
+2. Generate your local RS256 cryptographic keys:
+   ```bash
+   ./scripts/generate_keys.sh
+   ```
+   *(This creates the `keys/` directory which is safely mounted into the Docker container via `docker-compose.yml` volumes).*
+3. Run the following command:
    ```bash
    docker-compose up --build
    ```
-3. The API will be available at `http://localhost:3000` and Mailpit at `http://localhost:8025`.
+4. The API will be available at `http://localhost:3000` and Mailpit at `http://localhost:8025`.
 
 *(Note: The `docker-compose.yml` automatically overrides the environment variables so the Rust container can correctly discover Redis and Mailpit via Docker DNS).*
 
@@ -66,11 +72,15 @@ This method is best if you are actively editing the Rust code. It uses Docker ju
    ```bash
    docker-compose up -d redis mailpit
    ```
-2. Copy the environment configuration:
+2. Generate your local RS256 cryptographic keys:
+   ```bash
+   ./scripts/generate_keys.sh
+   ```
+3. Copy the environment configuration:
    ```bash
    cp .env.example .env
    ```
-3. Run the server:
+4. Run the server:
    ```bash
    cargo run
    ```

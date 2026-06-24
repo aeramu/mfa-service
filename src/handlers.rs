@@ -2,10 +2,12 @@ use axum::{extract::State, Json};
 use rand::Rng;
 use std::sync::Arc;
 use validator::Validate;
+use jsonwebtoken::{encode, EncodingKey, Header, Algorithm};
+use chrono::{Utc, Duration};
 
 use crate::{
     error::AppError,
-    models::{GenerateOtpRequest, GenerateOtpResponse, VerifyOtpRequest, VerifyOtpResponse},
+    models::{GenerateOtpRequest, GenerateOtpResponse, VerifyOtpRequest, VerifyOtpResponse, JwtClaims},
     services::{email::EmailService, redis::RedisService},
     config::Config,
 };
@@ -15,6 +17,19 @@ pub struct AppState {
     pub redis_service: RedisService,
     pub email_service: EmailService,
     pub config: Config,
+    pub jwt_private_key: Vec<u8>,
+    pub jwt_public_key: String,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/otp/public-key",
+    responses(
+        (status = 200, description = "Returns the RS256 Public Key in PEM format", body = String)
+    )
+)]
+pub async fn get_public_key(State(state): State<Arc<AppState>>) -> String {
+    state.jwt_public_key.clone()
 }
 
 #[utoipa::path(
@@ -90,8 +105,19 @@ pub async fn verify_otp(
         .verify_otp(&payload.email, &payload.code, state.config.max_verify_attempts)
         .await?;
 
+    let expiration = Utc::now() + Duration::hours(state.config.jwt_expiration_hours as i64);
+    let claims = JwtClaims {
+        sub: payload.email.clone(),
+        exp: expiration.timestamp() as usize,
+    };
+    
+    let key = EncodingKey::from_rsa_pem(&state.jwt_private_key)?;
+    let header = Header::new(Algorithm::RS256);
+    let token = encode(&header, &claims, &key)?;
+
     Ok(Json(VerifyOtpResponse {
         message: "OTP verified successfully".to_string(),
+        token,
     }))
 }
 

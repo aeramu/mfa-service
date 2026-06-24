@@ -8,6 +8,8 @@ services:
     depends_on:
       - redis
       - mailpit
+    volumes:
+      - ./keys:/usr/local/bin/keys:ro
     env_file:
       - .env
     environment:

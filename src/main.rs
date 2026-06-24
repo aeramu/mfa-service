@@ -6,7 +6,7 @@ mod services;
 
 use axum::{
     http::{header, HeaderValue},
-    routing::post,
+    routing::{post, get},
     Router,
 };
 use std::sync::Arc;
@@ -20,14 +20,15 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use config::Config;
-use handlers::{generate_otp, verify_otp, AppState};
+use handlers::{generate_otp, verify_otp, get_public_key, AppState};
 use services::{email::EmailService, redis::RedisService};
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
         handlers::generate_otp,
-        handlers::verify_otp
+        handlers::verify_otp,
+        handlers::get_public_key
     ),
     components(
         schemas(
@@ -67,11 +68,21 @@ async fn main() -> anyhow::Result<()> {
     let redis_service = RedisService::new(&config.redis_url);
     let email_service = EmailService::new(&config);
 
+    // Load RSA Keys
+    let jwt_private_key = tokio::fs::read(&config.jwt_private_key_path)
+        .await
+        .expect("Failed to read JWT_PRIVATE_KEY_PATH");
+    let jwt_public_key = tokio::fs::read_to_string(&config.jwt_public_key_path)
+        .await
+        .expect("Failed to read JWT_PUBLIC_KEY_PATH");
+
     // Create application state
     let state = Arc::new(AppState {
         redis_service,
         email_service,
         config: config.clone(),
+        jwt_private_key,
+        jwt_public_key,
     });
 
     // Configure permissive CORS for all frontends
@@ -82,6 +93,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/api/v1/otp/generate", post(generate_otp))
         .route("/api/v1/otp/verify", post(verify_otp))
+        .route("/api/v1/otp/public-key", get(get_public_key))
         .with_state(state)
         .layer(cors)
         .layer(SetResponseHeaderLayer::overriding(

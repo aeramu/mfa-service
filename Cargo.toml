@@ -36,3 +36,5 @@ utoipa = { version = "4.2", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "7.1", features = ["axum"] }
 validator = { version = "0.20.0", features = ["derive"] }
 askama = "0.16.0"
+jsonwebtoken = { version = "10.4.0", features = ["rust_crypto"] }
+chrono = "0.4.45"

@@ -32,6 +32,14 @@ pub struct VerifyOtpRequest {
 pub struct VerifyOtpResponse {
     #[schema(example = "OTP verified successfully")]
     pub message: String,
+    #[schema(example = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...")]
+    pub token: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct JwtClaims {
+    pub sub: String,
+    pub exp: usize,
 }
 
 #[derive(Serialize, ToSchema)]

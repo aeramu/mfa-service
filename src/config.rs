@@ -10,6 +10,9 @@ pub struct Config {
     pub smtp_password: String,
     pub smtp_use_tls: bool,
     pub from_address: String,
+    pub jwt_private_key_path: String,
+    pub jwt_public_key_path: String,
+    pub jwt_expiration_hours: u64,
     pub otp_expiration_minutes: u64,
     pub otp_length: usize,
     pub rate_limit_reset_seconds: u64,
@@ -36,7 +39,12 @@ impl Config {
             .map(|s| s == "true" || s == "1")
             .unwrap_or(false); // Default to false for local Mailpit dev
         let from_address = env::var("FROM_ADDRESS").unwrap_or_else(|_| "noreply@example.com".to_string());
-
+        let jwt_private_key_path = env::var("JWT_PRIVATE_KEY_PATH").unwrap_or_else(|_| "keys/private.pem".to_string());
+        let jwt_public_key_path = env::var("JWT_PUBLIC_KEY_PATH").unwrap_or_else(|_| "keys/public.pem".to_string());
+        let jwt_expiration_hours = env::var("JWT_EXPIRATION_HOURS")
+            .unwrap_or_else(|_| "24".to_string())
+            .parse()
+            .expect("JWT_EXPIRATION_HOURS must be a number");
         let otp_expiration_minutes = env::var("OTP_EXPIRATION_MINUTES")
             .unwrap_or_else(|_| "10".to_string())
             .parse()
@@ -64,6 +72,9 @@ impl Config {
             smtp_password,
             smtp_use_tls,
             from_address,
+            jwt_private_key_path,
+            jwt_public_key_path,
+            jwt_expiration_hours,
             otp_expiration_minutes,
             otp_length,
             rate_limit_reset_seconds,

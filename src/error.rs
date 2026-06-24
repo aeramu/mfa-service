@@ -31,6 +31,9 @@ pub enum AppError {
 
     #[error("Validation error: {0}")]
     ValidationError(#[from] validator::ValidationErrors),
+
+    #[error("JWT error: {0}")]
+    JwtError(#[from] jsonwebtoken::errors::Error),
 }
 
 impl IntoResponse for AppError {
@@ -58,6 +61,10 @@ impl IntoResponse for AppError {
             AppError::EmailError(_) => {
                 tracing::error!("Email error: {}", self);
                 (StatusCode::INTERNAL_SERVER_ERROR, "Failed to send email".to_string())
+            }
+            AppError::JwtError(_) => {
+                tracing::error!("JWT error: {}", self);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Failed to generate session token".to_string())
             }
             AppError::InternalError(e) => {
                 tracing::error!("Internal error: {}", e);
