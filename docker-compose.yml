@@ -1,6 +1,21 @@
 version: '3.8'
 
 services:
+  mfa-service:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis
+      - mailpit
+    env_file:
+      - .env
+    environment:
+      # Override local .env settings to use internal Docker network hostnames
+      - REDIS_URL=redis://redis:6379/
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+
   redis:
     image: redis:7-alpine
     ports:
