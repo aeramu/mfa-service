@@ -12,11 +12,7 @@ services:
       - ./keys:/usr/local/bin/keys:ro
     env_file:
       - .env
-    environment:
-      # Override local .env settings to use internal Docker network hostnames
-      - REDIS_URL=redis://redis:6379/
-      - SMTP_HOST=mailpit
-      - SMTP_PORT=1025
+      - .env.docker
 
   redis:
     image: redis:7-alpine
