@@ -38,7 +38,9 @@ impl Config {
         let smtp_use_tls = env::var("SMTP_USE_TLS")
             .map(|s| s == "true" || s == "1")
             .unwrap_or(false); // Default to false for local Mailpit dev
-        let from_address = env::var("FROM_ADDRESS").unwrap_or_else(|_| "noreply@example.com".to_string());
+        let from_address = env::var("FROM_ADDRESS")
+            .or_else(|_| env::var("SMTP_FROM"))
+            .unwrap_or_else(|_| "noreply@example.com".to_string());
         let jwt_private_key_path = env::var("JWT_PRIVATE_KEY_PATH").unwrap_or_else(|_| "keys/private.pem".to_string());
         let jwt_public_key_path = env::var("JWT_PUBLIC_KEY_PATH").unwrap_or_else(|_| "keys/public.pem".to_string());
         let jwt_expiration_hours = env::var("JWT_EXPIRATION_HOURS")

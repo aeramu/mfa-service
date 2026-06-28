@@ -1,6 +1,6 @@
 use crate::{config::Config, error::AppError};
 use lettre::{
-    message::header::ContentType, transport::smtp::authentication::Credentials, Message,
+    message::MultiPart, transport::smtp::authentication::Credentials, Message,
     SmtpTransport, Transport, transport::smtp::client::{Tls, TlsParameters},
 };
 use askama::Template;
@@ -56,12 +56,16 @@ impl EmailService {
         };
         let html_body = template.render().map_err(|e| AppError::EmailError(format!("Template error: {}", e)))?;
 
+        let plain_body = format!(
+            "Your One-Time Password (OTP) is: {}\n\nThis code will expire in {} minutes.",
+            otp_code, expiration_minutes
+        );
+
         let email = Message::builder()
             .from(self.from_address.parse().expect("Invalid from address"))
             .to(to_email.parse().map_err(|_| AppError::EmailError("Invalid email".into()))?)
             .subject("Your One-Time Password")
-            .header(ContentType::TEXT_HTML)
-            .body(html_body)
+            .multipart(MultiPart::alternative_plain_html(plain_body, html_body))
             .map_err(|e| AppError::EmailError(e.to_string()))?;
 
         self.mailer
