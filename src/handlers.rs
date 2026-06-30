@@ -52,7 +52,12 @@ pub async fn generate_otp(
     // 1. Check Rate Limit and get cooldown for next request
     let retry_after_seconds = state
         .redis_service
-        .check_rate_limit(&payload.email, state.config.rate_limit_reset_seconds)
+        .check_rate_limit(
+            &payload.email,
+            state.config.rate_limit_reset_seconds,
+            state.config.rate_limit_base_delay_seconds,
+            state.config.rate_limit_multiplier,
+        )
         .await?;
 
     // 2. Generate Random OTP

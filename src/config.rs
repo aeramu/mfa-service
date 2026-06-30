@@ -17,6 +17,8 @@ pub struct Config {
     pub otp_length: usize,
     pub rate_limit_reset_seconds: u64,
     pub max_verify_attempts: u32,
+    pub rate_limit_base_delay_seconds: u64,
+    pub rate_limit_multiplier: f64,
 }
 
 impl Config {
@@ -65,6 +67,16 @@ impl Config {
             .parse()
             .expect("MAX_VERIFY_ATTEMPTS must be a number");
 
+        let rate_limit_base_delay_seconds = env::var("RATE_LIMIT_BASE_DELAY_SECONDS")
+            .unwrap_or_else(|_| "30".to_string())
+            .parse()
+            .expect("RATE_LIMIT_BASE_DELAY_SECONDS must be a number");
+
+        let rate_limit_multiplier = env::var("RATE_LIMIT_MULTIPLIER")
+            .unwrap_or_else(|_| "2.0".to_string())
+            .parse()
+            .expect("RATE_LIMIT_MULTIPLIER must be a number");
+
         Config {
             port,
             redis_url,
@@ -81,6 +93,8 @@ impl Config {
             otp_length,
             rate_limit_reset_seconds,
             max_verify_attempts,
+            rate_limit_base_delay_seconds,
+            rate_limit_multiplier,
         }
     }
 }
