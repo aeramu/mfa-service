@@ -1,6 +1,6 @@
 use std::env;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Config {
     pub port: u16,
     pub redis_url: String,
@@ -15,6 +15,7 @@ pub struct Config {
     pub jwt_expiration_hours: u64,
     pub otp_expiration_minutes: u64,
     pub otp_length: usize,
+    pub otp_bypass_code: Option<String>,
     pub rate_limit_reset_seconds: u64,
     pub max_verify_attempts: u32,
     pub rate_limit_base_delay_seconds: u64,
@@ -57,6 +58,10 @@ impl Config {
             .unwrap_or_else(|_| "6".to_string())
             .parse()
             .expect("OTP_LENGTH must be a number");
+        let otp_bypass_code = env::var("OTP_BYPASS_CODE")
+            .ok()
+            .map(|code| code.trim().to_string())
+            .filter(|code| !code.is_empty());
 
         let rate_limit_reset_seconds = env::var("RATE_LIMIT_RESET_HOURS")
             .map(|h| h.parse::<u64>().expect("RATE_LIMIT_RESET_HOURS must be a number") * 3600)
@@ -91,6 +96,7 @@ impl Config {
             jwt_expiration_hours,
             otp_expiration_minutes,
             otp_length,
+            otp_bypass_code,
             rate_limit_reset_seconds,
             max_verify_attempts,
             rate_limit_base_delay_seconds,

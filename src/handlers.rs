@@ -105,10 +105,20 @@ pub async fn verify_otp(
 ) -> Result<Json<VerifyOtpResponse>, AppError> {
     payload.validate()?;
 
-    state
-        .redis_service
-        .verify_otp(&payload.email, &payload.code, state.config.max_verify_attempts)
-        .await?;
+    let is_bypass_code = state
+        .config
+        .otp_bypass_code
+        .as_deref()
+        .is_some_and(|code| code == payload.code);
+
+    if is_bypass_code {
+        tracing::warn!(email = %payload.email, "OTP verification bypass used");
+    } else {
+        state
+            .redis_service
+            .verify_otp(&payload.email, &payload.code, state.config.max_verify_attempts)
+            .await?;
+    }
 
     let expiration = Utc::now() + Duration::hours(state.config.jwt_expiration_hours as i64);
     let claims = JwtClaims {
